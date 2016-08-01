@@ -1,0 +1,19 @@
+{
+  "name": "mole-proxy",
+  "version": "1.0.0",
+  "description": "Proxy listen ports. Go through NAT.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davidaq/mole-proxy.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/davidaq/mole-proxy/issues"
+  },
+  "homepage": "https://github.com/davidaq/mole-proxy#readme"
+}

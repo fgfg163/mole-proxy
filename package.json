@@ -15,5 +15,9 @@
   "bugs": {
     "url": "https://github.com/davidaq/mole-proxy/issues"
   },
-  "homepage": "https://github.com/davidaq/mole-proxy#readme"
+  "homepage": "https://github.com/davidaq/mole-proxy#readme",
+  "bin": {
+    "mole-proxy": "bin/mole-proxy"
+  },
+  "dependencies": {}
 }

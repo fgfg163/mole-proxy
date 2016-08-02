@@ -10,7 +10,7 @@ exports.END_CLIENT_END      = I++;
 exports.CONNECT             = I++;
 exports.ERROR               = I++;
 
-var BR = Buffer.alloc(1, 10);
+var BR = Buffer.from([10]);
 
 exports.subBuffer = function(src, start, len) {
     start = start - 0 || 0;

@@ -188,7 +188,6 @@ class Connection extends EventEmitter {
             sendBuffer[5] = this.connId;
             this._send(sendBuffer);
         } else {
-            console.log(this.resendDelay);
             var waterMark = Date.now() - this.resendDelay;
             var lost = 0;
             for (var i = this.benchWndStart; i != this.benchWndEnd; i = this._nextPtr(i)) {
@@ -197,13 +196,8 @@ class Connection extends EventEmitter {
                     lost++;
                     item.retry++;
                     item.timestamp = Date.now();
-                    this.resendDelay += 30;
                     this._sendPack(i);
                 }
-            }
-            if (lost < AcceptLost) {
-                this.resendDelay = Math.ceil(this.resendDelay * 0.7);
-                this.resendDelay = Math.max(200, Math.min(1500, this.resendDelay));
             }
         }
     }
@@ -254,11 +248,16 @@ class Connection extends EventEmitter {
         }
     }
     ack(packId) {
-        delete this.ackBench[packId];
-        while (!this.ackBench[this.benchWndStart] && this.benchWndEnd != this.benchWndStart) {
-            this.benchWndStart = this._nextPtr(this.benchWndStart);
+        var item = this.ackBench[packId];
+        if (item) {
+            var ping = Date.now() - item.beginTime;
+            this.resendDelay = Math.max(100, this.resendDelay * 0.8 + ping * 0.2);
+            delete this.ackBench[packId];
+            while (!this.ackBench[this.benchWndStart] && this.benchWndEnd != this.benchWndStart) {
+                this.benchWndStart = this._nextPtr(this.benchWndStart);
+            }
+            this._deliver();
         }
-        this._deliver();
     }
     peerEnd() {
         if (!this.peerEnded) {
@@ -304,6 +303,7 @@ class Connection extends EventEmitter {
             this.ackBench[this.benchWndEnd] = {
                 data: this.pendingQueue.shift(),
                 timestamp: Date.now(),
+                beginTime: Date.now(),
                 retry: 0,
             };
             this._sendPack(this.benchWndEnd);

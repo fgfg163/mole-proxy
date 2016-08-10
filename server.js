@@ -1,8 +1,8 @@
 var net = require('net');
 var netio = require('./netio');
 
-module.exports = function(port) {
-    var server = net.createServer({allowHalfOpen: false}, function(connection) {
+module.exports = function(adapter, port) {
+    var server = adapter.createServer(function(connection) {
         var dedicatedServer;
         var writer = netio.writer(connection);
         var endClientTable = {};
@@ -23,7 +23,7 @@ module.exports = function(port) {
                     if (!ended) {
                         var ptr = 0;
                         while (ptr < endClientData.length) {
-                            var len = Math.min(4096, endClientData.length - ptr);
+                            var len = Math.min(adapter.frameSize, endClientData.length - ptr);
                             writer.write(netio.END_CLIENT_DATA, Buffer.concat([uidBuffer, netio.subBuffer(endClientData, ptr, len)]));
                             ptr += len;
                         }

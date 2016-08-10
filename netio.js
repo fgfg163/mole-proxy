@@ -23,8 +23,11 @@ exports.subBuffer = function(src, start, len) {
 exports.writer = function(writable) {
     return {
         write: function(mark, data) {
-            if (data && !Buffer.isBuffer(data)) {
+            if (data) {
                 data = Buffer.from(data);
+                for (var i = 1; i < data.length; i++) {
+                    data[i] ^= data[i - 1];
+                }
             }
             var header = new Buffer(5);
             header[4] = mark;
@@ -77,6 +80,9 @@ exports.reader = function(readable, onData, onEnd) {
                 var chunk = debuffer(wait);
                 if (chunk) {
                     wait = 0;
+                    for (var i = chunk.length - 1; i > 0; i--) {
+                        chunk[i] ^= chunk[i - 1];
+                    }
                     onData(mark, chunk);
                 } else {
                     break;
@@ -114,3 +120,4 @@ exports.reader = function(readable, onData, onEnd) {
         onEnd = null;
     });
 };
+

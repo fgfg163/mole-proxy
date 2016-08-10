@@ -93,11 +93,11 @@ function bind(port) {
         case 5: // data chunk ACK
             if (conn && !conn.placeholder) {
                 if (mark == 4) {
-                    var data = new Buffer(msg.length - 7);
-                    msg.copy(data, 0, 7, msg.length);
-                    conn.peerData(msg[6], data);
+                    var data = new Buffer(msg.length - 8);
+                    msg.copy(data, 0, 8, msg.length);
+                    conn.peerData(msg.readUInt16LE(6), data);
                 } else {
-                    conn.ack(msg[6]);
+                    conn.ack(msg.readUInt16LE(6));
                 }
             } else {
                 var buffer = new Buffer(7);
@@ -155,6 +155,11 @@ function heartBeat() {
 
 var heartBeatStarted = false;
 
+
+const WindowSize = 1000;
+const PackIdSize = 65530;
+const AcceptLost = 10;
+
 class Connection extends EventEmitter {
     constructor() {
         super();
@@ -169,6 +174,7 @@ class Connection extends EventEmitter {
         this.rcvWndPtr = 0;
         this.ended = false;
         this.timestamp = Date.now();
+        this.resendDelay = 200;
     }
     beat() {
         if (this.timestamp + 10000 < Date.now()) {
@@ -182,14 +188,22 @@ class Connection extends EventEmitter {
             sendBuffer[5] = this.connId;
             this._send(sendBuffer);
         } else {
-            var waterMark = Date.now() - 800;
+            console.log(this.resendDelay);
+            var waterMark = Date.now() - this.resendDelay;
+            var lost = 0;
             for (var i = this.benchWndStart; i != this.benchWndEnd; i = this._nextPtr(i)) {
                 var item = this.ackBench[i];
-                if (item.timestamp < waterMark) {
+                if (item && item.timestamp < waterMark) {
+                    lost++;
                     item.retry++;
-                    item.timestamp = Date.now() + 500 * item.retry;
+                    item.timestamp = Date.now();
+                    this.resendDelay += 30;
                     this._sendPack(i);
                 }
+            }
+            if (lost < AcceptLost) {
+                this.resendDelay = Math.ceil(this.resendDelay * 0.7);
+                this.resendDelay = Math.max(200, Math.min(1500, this.resendDelay));
             }
         }
     }
@@ -217,18 +231,18 @@ class Connection extends EventEmitter {
         this._deliver();
     }
     peerData(packId, data) {
-        var sendBuffer = new Buffer(7);
+        var sendBuffer = new Buffer(8);
         signHeader.copy(sendBuffer, 0, 0, 4);
         sendBuffer[4] = 5;
         sendBuffer[5] = this.connId;
-        sendBuffer[6] = packId;
+        sendBuffer.writeUInt16LE(packId, 6);
         this._send(sendBuffer);
 
         var diff = packId - this.rcvWndPtr;
         if (diff < 0) {
-            diff += 250;
+            diff += PackIdSize;
         }
-        if (diff > 100) {
+        if (diff > WindowSize) {
             // console.log('dispose', packId);
             return;
         }
@@ -286,7 +300,7 @@ class Connection extends EventEmitter {
         if (!this.connId) {
             return;
         }
-        while (this.pendingQueue.length && this._benchLen() < 100) {
+        while (this.pendingQueue.length && this._benchLen() < WindowSize) {
             this.ackBench[this.benchWndEnd] = {
                 data: this.pendingQueue.shift(),
                 timestamp: Date.now(),
@@ -298,12 +312,12 @@ class Connection extends EventEmitter {
     }
     _sendPack(packId) {
         var dataBuffer = this.ackBench[packId].data;
-        var sendBuffer = new Buffer(dataBuffer.length + 7);
+        var sendBuffer = new Buffer(dataBuffer.length + 8);
         signHeader.copy(sendBuffer, 0, 0, 4);
         sendBuffer[4] = 4;
         sendBuffer[5] = this.connId;
-        sendBuffer[6] = packId;
-        dataBuffer.copy(sendBuffer, 7, 0, dataBuffer.length);
+        sendBuffer.writeUInt16LE(packId, 6);
+        dataBuffer.copy(sendBuffer, 8, 0, dataBuffer.length);
         this._send(sendBuffer);
     }
     _send(data) {
@@ -311,7 +325,7 @@ class Connection extends EventEmitter {
     }
     _nextPtr(num) {
         num++;
-        if (num >= 250) {
+        if (num >= PackIdSize) {
             num = 0;
         }
         return num;
@@ -319,7 +333,7 @@ class Connection extends EventEmitter {
     _benchLen() {
         var ret = this.benchWndEnd - this.benchWndStart;
         if (ret < 0) {
-            ret += 250;
+            ret += PackIdSize;
         }
         return ret;
     }

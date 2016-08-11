@@ -79,6 +79,11 @@ function bind(port) {
             break;
         case 2: // end signal
             conn && conn.peerEnd();
+            var sendBuffer = new Buffer(7);
+            signHeader.copy(sendBuffer, 0, 0, 4);
+            sendBuffer[4] = 3; // end ack
+            sendBuffer[5] = this.connId;
+            sock.send(sendBuffer, remote.port, remote.addr);
             break;
         case 3: // end signal ACK
             conn && !conn.placeholder && conn.endAck();
@@ -150,15 +155,14 @@ function heartBeat() {
         });
     });
     pendingConnections.forEach(emitConnect);
-    setTimeout(heartBeat, 200).unref();
+    setTimeout(heartBeat, 50).unref();
 }
 
 var heartBeatStarted = false;
 
 
-const WindowSize = 1000;
+const WindowSize = 300;
 const PackIdSize = 65530;
-const AcceptLost = 10;
 
 class Connection extends EventEmitter {
     constructor() {
@@ -174,7 +178,7 @@ class Connection extends EventEmitter {
         this.rcvWndPtr = 0;
         this.ended = false;
         this.timestamp = Date.now();
-        this.resendDelay = 200;
+        this.resendDelay = 300;
     }
     beat() {
         if (this.timestamp + 10000 < Date.now()) {
@@ -189,12 +193,9 @@ class Connection extends EventEmitter {
             this._send(sendBuffer);
         } else {
             var waterMark = Date.now() - this.resendDelay;
-            var lost = 0;
             for (var i = this.benchWndStart; i != this.benchWndEnd; i = this._nextPtr(i)) {
                 var item = this.ackBench[i];
                 if (item && item.timestamp < waterMark) {
-                    lost++;
-                    item.retry++;
                     item.timestamp = Date.now();
                     this._sendPack(i);
                 }
@@ -250,8 +251,8 @@ class Connection extends EventEmitter {
     ack(packId) {
         var item = this.ackBench[packId];
         if (item) {
-            var ping = Date.now() - item.beginTime;
-            this.resendDelay = Math.max(100, this.resendDelay * 0.8 + ping * 0.2);
+            var ping = (Date.now() - item.beginTime) * 1.5;
+            this.resendDelay = Math.max(30, Math.ceil(this.resendDelay * 0.9 + ping * 0.1));
             delete this.ackBench[packId];
             while (!this.ackBench[this.benchWndStart] && this.benchWndEnd != this.benchWndStart) {
                 this.benchWndStart = this._nextPtr(this.benchWndStart);
@@ -266,11 +267,6 @@ class Connection extends EventEmitter {
             this.end();
             this._close();
         }
-        var sendBuffer = new Buffer(7);
-        signHeader.copy(sendBuffer, 0, 0, 4);
-        sendBuffer[4] = 3;
-        sendBuffer[5] = this.connId;
-        this._send(sendBuffer);
     }
     end() {
         this.ended = true;
@@ -304,7 +300,6 @@ class Connection extends EventEmitter {
                 data: this.pendingQueue.shift(),
                 timestamp: Date.now(),
                 beginTime: Date.now(),
-                retry: 0,
             };
             this._sendPack(this.benchWndEnd);
             this.benchWndEnd = this._nextPtr(this.benchWndEnd);

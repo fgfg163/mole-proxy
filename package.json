@@ -1,6 +1,6 @@
 {
   "name": "mole-proxy",
-  "version": "1.0.5",
+  "version": "1.0.7",
   "description": "Proxy listen ports. Go through NAT.",
   "main": "index.js",
   "scripts": {

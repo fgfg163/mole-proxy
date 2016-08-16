@@ -3,7 +3,7 @@ var net = require('net');
 exports.frameSize = 4096;
 
 exports.createConnection = function (opt) {
-    return net.connect(opt);
+    return net.createConnection(opt);
 };
 
 exports.createServer = function (cb) {

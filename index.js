@@ -10,7 +10,7 @@ if (argv[0] == 'udp') {
 
 if (argv[0] == 'server' && !argv[1]) {
     argv[1] = '8008';
-} else if (argv[0] != 'server') {
+} else if (argv[0] && argv[0] != 'server') {
     if (/[a-zA-Z0-9\.\-_\:]+/.test(argv[0])) {
         var parts = argv[0].split(':');
         argv.splice(0, 1, parts[0], parts[1] || '8008');

@@ -11,6 +11,9 @@ module.exports = function(adapter, server, serverPort, destinationPort, sourcePo
     setInterval(function() {
         writer.write(netio.ALIVE);
     }, 3000).unref();
+    setTimeout(function() {
+        writer.write(netio.ALIVE);
+    }, 1000).unref();
     var sourcePortBuffer = new Buffer(2);
     sourcePortBuffer.writeUInt16LE(sourcePort - 0, 0);
     writer.write(netio.INIT, sourcePortBuffer);
@@ -59,6 +62,10 @@ module.exports = function(adapter, server, serverPort, destinationPort, sourcePo
     };
     handler[netio.ERROR] = function(data) {
         console.error(data.toString());
+    };
+    handler[netio.ALIVE] = function() {
+        console.log('Tunneling...\n localhost:' + destinationPort + ' <=> ' + server + ':' + sourcePort);
+        handler[netio.ALIVE] = null;
     };
     netio.reader(connection, function(mark, data) {
         handler[mark] && handler[mark](data);

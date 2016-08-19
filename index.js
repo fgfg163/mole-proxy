@@ -1,3 +1,9 @@
+var version = process.version.match(/^v([0-9]+)\./)[1] - 0;
+if (version < 6) {
+    console.log('Node version too old (' + process.version + '), please update to v6.x');
+    process.exit(1);
+}
+
 var argv = process.argv.slice(2);
 var adapter;
 
@@ -6,6 +12,10 @@ if (argv[0] == 'udp') {
     adapter = require('./udpio');
 } else {
     adapter = require('./tcpio');
+}
+
+if (Math.floor(argv[0]) == argv[0]) {
+    argv.unshift('szwg-waimai-famliy00.szwg01.baidu.com:8008');
 }
 
 if (argv[0] == 'server' && !argv[1]) {

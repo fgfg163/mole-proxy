@@ -29,7 +29,18 @@ if (argv[0] == 'server' && !argv[1]) {
     }
 }
 
-if (argv.length == 2 && argv[0] == 'server') {
+if (argv[0] == 'usedport' || argv[0] == 'uport') {
+    var spawn = require('child_process').spawn;
+    free = spawn('netstat', ['-ln']);
+
+    free.stdout.on('data', function (data) {
+        console.log('port list:\n' + data);
+    });
+
+    free.stderr.on('data', function (data) {
+        console.log('netstat error:\n' + data);
+    });
+} else if (argv.length == 2 && argv[0] == 'server') {
     if (Math.floor(argv[1]) == argv[1]) {
         require('./server')(adapter, argv[1]);
     } else {
